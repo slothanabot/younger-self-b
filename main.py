@@ -1,45 +1,68 @@
 #!/usr/bin/env python3
-"""One Line to Your Younger Self (account B).
+"""One line to send back to a younger self.
 
-Writes one line to $MAKEFUN_OUTPUT_DIR/entry.txt,
-or /output/entry.txt when the variable is unset.
-Gate: UTF-8 text, 1-200 characters, not only whitespace, one line.
+The program writes a single English sentence — the line its author would
+send to their younger self — into entry.txt under the output directory the
+grader provides. The line is fixed: it is the author's own, not generated
+at run time, so the two runs the grader does produce the same file.
 
-One line back to a younger self: the leather jacket won't keep her, and you'll still be paying for it at thirty.
+Output rules, from the competition gate:
+  * entry.txt must hold UTF-8 text, 1 to 200 characters;
+  * it must not be only whitespace;
+  * it must be one line, no line breaks.
+
+The output directory comes from MAKEFUN_OUTPUT_DIR when that variable is
+set, and defaults to /output. Nothing is read from or written to the
+current working directory, and only the standard library is used.
 """
 
+from __future__ import annotations
+
 import os
+import sys
+from pathlib import Path
 
-LINE = "Don't buy the leather jacket to impress her — she leaves you for the boy in the hoodie, and you'll still be paying off that jacket at thirty."
+# The line itself: a warning to the author's younger self about a leather
+# jacket bought to impress a girl who would leave him anyway — a mistake
+# still being paid off at thirty.
+MESSAGE = (
+    "Don't buy the leather jacket to impress her — "
+    "she leaves you for the boy in the hoodie, "
+    "and you'll still be paying off that jacket at thirty."
+)
 
-
-def build_line() -> str:
-    """Return the entry line, validated as a single in-range line."""
-    line = LINE.strip()
-    if not line or "\n" in line or "\r" in line:
-        raise SystemExit("entry must be one non-empty line")
-    if not 1 <= len(line) <= 200:
-        raise SystemExit(f"entry is {len(line)} chars, must be 1-200")
-    return line
-
-
-def write_entry(line: str) -> str:
-    out_dir = os.environ.get("MAKEFUN_OUTPUT_DIR") or "/output"
-    os.makedirs(out_dir, exist_ok=True)
-    path = os.path.join(out_dir, "entry.txt")
-    with open(path, "w", encoding="utf-8", newline="") as f:
-        f.write(line)
-    with open(path, "r", encoding="utf-8", newline="") as f:
-        written = f.read()
-    if written != line:
-        raise SystemExit("round-trip check failed: entry.txt differs")
-    return written
+MAX_CHARS = 200
 
 
-def main() -> None:
-    written = write_entry(build_line())
-    print(f"{written} ({len(written)} chars)")
+def output_dir() -> Path:
+    """Where entry.txt goes: the env var, or /output as a fallback."""
+    return Path(os.environ.get("MAKEFUN_OUTPUT_DIR") or "/output")
+
+
+def checked(message: str) -> str:
+    """Return the message only if it fits the gate, else stop loudly."""
+    text = message.strip()
+    if not text:
+        sys.exit("refusing to write an empty entry")
+    if "\n" in text or "\r" in text:
+        sys.exit("entry must be a single line")
+    if len(text) > MAX_CHARS:
+        sys.exit(f"entry is {len(text)} chars, over the {MAX_CHARS} limit")
+    return text
+
+
+def main() -> int:
+    text = checked(MESSAGE)
+    folder = output_dir()
+    folder.mkdir(parents=True, exist_ok=True)
+    target = folder / "entry.txt"
+    target.write_text(text, encoding="utf-8")
+    # Read it back and compare, so a partial write cannot pass silently.
+    if target.read_text(encoding="utf-8") != text:
+        sys.exit("entry.txt did not round-trip")
+    print(f"wrote {len(text)} chars to {target}")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
