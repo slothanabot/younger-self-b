@@ -40,15 +40,20 @@ def output_dir() -> Path:
 
 
 def checked(message: str) -> str:
-    """Return the message only if it fits the gate, else stop loudly."""
-    text = message.strip()
-    if not text:
+    """Return the message only if it fits the gate, else stop loudly.
+
+    Edge whitespace is refused rather than trimmed: the stored line
+    must be exactly the author's line, byte for byte.
+    """
+    if message != message.strip():
+        sys.exit("refusing to write an entry with edge whitespace")
+    if not message:
         sys.exit("refusing to write an empty entry")
-    if "\n" in text or "\r" in text:
+    if "\n" in message or "\r" in message:
         sys.exit("entry must be a single line")
-    if len(text) > MAX_CHARS:
-        sys.exit(f"entry is {len(text)} chars, over the {MAX_CHARS} limit")
-    return text
+    if len(message) > MAX_CHARS:
+        sys.exit(f"entry is {len(message)} chars, over the {MAX_CHARS} limit")
+    return message
 
 
 def main() -> int:
